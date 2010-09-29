@@ -1,6 +1,7 @@
 <?php
 
 function flag_classes_init() {
+  // @todo: Add this only if needed.
   drupal_add_js(drupal_get_path('module', 'flag_classes') . '/flag_classes.js');
 }
 
@@ -17,9 +18,13 @@ function flag_classes_theme_registry_alter(&$theme_registry) {
 /**
  * Preprocess variables for node.tpl.php
  *
- * Our purpose is to wrap the theme('node') output inside a DIV with the flag
- * classes. To do this we send the theme('node') output to our own node.tpl.php
- * replacement: flag-classes-node.tpl.php.
+ * Drupal 6 (as opposed to Drupal 7) doesn't let add our own CSS classes to
+ * nodes. So instead we're going to wrap the theme('node') output in a DIV with
+ * our flag classes. To do this we send the theme('node') output to our own
+ * node.tpl.php replacement: flag-classes-node.tpl.php.
+ *
+ * @todo: This isn't very efficient; allow the admin to turn this feature off;
+ * he'll need to add "print $flag_classes" to his theme's node.tpl.php.
  */
 function flag_classes_preprocess_node(&$vars) {
   global $flag_classes_in_wrapper;
@@ -77,7 +82,10 @@ function flag_classes_enumerate($content_type, $content_id) {
 }
 
 // -----------------------------------------------------------------------
-// Menu callbacks for the forms.
+// Views support.
+
+// @todo: Extend this to not just nodes.
+// @todo: The view should have an on/off setting.
 
 function flag_classes_preprocess_views_view_table(&$vars) {
   $view = $vars['view'];
