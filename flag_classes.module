@@ -85,7 +85,8 @@ function flag_classes_preprocess_views_view_table(&$vars) {
 
   if ($view->base_table == 'node') {
     foreach ($rows as $id => $row) {
-      $flag_classes = implode(' ', flag_classes_enumerate('node', $row['nid']));
+      $data = $view->result[$id]; // We can't look in $row because it may not have 'nid'.
+      $flag_classes = implode(' ', flag_classes_enumerate('node', $data->nid));
       $vars['row_classes'][$id][] = $flag_classes;
       $vars['row_classes'][$id][] = 'views-row'; // For our JavaScript.
     }
