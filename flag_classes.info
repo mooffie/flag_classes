@@ -1,0 +1,5 @@
+name = Flag classes
+description = Adds CSS classes to flagged items.
+core = 6.x
+dependencies[] = flag
+package = Flags

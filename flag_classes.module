@@ -1,0 +1,112 @@
+<?php
+
+function flag_classes_init() {
+  drupal_add_js(drupal_get_path('module', 'flag_classes') . '/flag_classes.js');
+}
+
+/**
+ * Make Drupal look in our module folder when it searches for 'flag-classes-node.tpl.php'.
+ */
+function flag_classes_theme_registry_alter(&$theme_registry) {
+  if (isset($theme_registry['node']) && isset($theme_registry['node']['theme paths'])) {
+    $module_path = drupal_get_path('module', 'flag_classes');
+    array_unshift($theme_registry['node']['theme paths'], $module_path);
+  }
+}
+
+/**
+ * Preprocess variables for node.tpl.php
+ *
+ * Our purpose is to wrap the theme('node') output inside a DIV with the flag
+ * classes. To do this we send the theme('node') output to our own node.tpl.php
+ * replacement: flag-classes-node.tpl.php.
+ */
+function flag_classes_preprocess_node(&$vars) {
+  global $flag_classes_in_wrapper;
+  if (!$flag_classes_in_wrapper && variable_get('flag_classes_wrap_nodes', TRUE)) {
+    $flag_classes_in_wrapper = TRUE;
+    $vars['node']->flag_classes = NULL; // Make PHP shut up in case the user prints $flag_classes in his node.tpl.php.
+    $vars['output'] = theme('node', $vars['node'], $vars['teaser'], $vars['page']);
+    $flag_classes_in_wrapper = FALSE;
+    $vars['flag_classes'] = implode(' ', flag_classes_enumerate('node', $vars['node']->nid));
+    $vars['template_files'][] = 'flag-classes-node';
+  }
+}
+
+/**
+ * Returns a list of CSS classes for a flagged item.
+ *
+ * The classes are of the form "node-flagged-FLAGNAME" (where "node" would be
+ * "user" or "comment": depending on the item type).
+ *
+ * Additionally, if the flag is set by the current user, a
+ * "node-flagged-FLAGNAME-self" class will be generated as well.
+ *
+ * @param $content_type
+ *   The item type: Either "node" or "user" or "comment" or whatever.
+ * @param $content_id
+ *   The item ID.
+ */
+function flag_classes_enumerate($content_type, $content_id) {
+  static $flags = array();
+
+  if (!module_exists('flag')) {
+    return array();
+  }
+
+  if (!isset($flags[$content_type])) {
+    $flags[$content_type] = flag_get_flags($content_type);
+  }
+
+  // Note: is_flagged() and get_count() use internal cache,
+  // so using them won't result in issuing excessive SQL queries.
+
+  $classes = array();
+  foreach ($flags[$content_type] as $flag) {
+    $css_name = str_replace('_', '-', $flag->name);
+    if (!$flag->global && $flag->is_flagged($content_id)) {
+      // The item is flagged by me.
+      $classes[] = $content_type . '-flagged-' . $css_name;
+      $classes[] = $content_type . '-flagged-' . $css_name . '-self';
+    } elseif ($flag->get_count($content_id)) {
+      // The item is flagged by anybody.
+      $classes[] = $content_type . '-flagged-' . $css_name;
+    }
+  }
+  return $classes;
+}
+
+// -----------------------------------------------------------------------
+// Menu callbacks for the forms.
+
+function flag_classes_preprocess_views_view_table(&$vars) {
+  $view = $vars['view'];
+  $rows = $vars['rows'];
+
+  if ($view->base_table == 'node') {
+    foreach ($rows as $id => $row) {
+      $flag_classes = implode(' ', flag_classes_enumerate('node', $row['nid']));
+      $vars['row_classes'][$id][] = $flag_classes;
+      $vars['row_classes'][$id][] = 'views-row'; // For our JavaScript.
+    }
+  }
+}
+
+function flag_classes_preprocess_views_view_unformatted(&$vars) {
+  $view = $vars['view'];
+  $rows = $vars['rows'];
+
+  if ($view->base_table == 'node'
+       && $view->display_handler->get_option('row_plugin') != 'node'
+       && empty($view->style_plugin->options['grouping'])) {  // Note: we don't support Grouping.
+    foreach ($rows as $id => $row) {
+      $data = $view->result[$id];
+      $flag_classes = implode(' ', flag_classes_enumerate('node', $data->nid));
+      $vars['classes'][$id] .= ' ' . $flag_classes;
+    }
+  }
+}
+
+function flag_classes_preprocess_views_view_list(&$vars) {
+  flag_classes_preprocess_views_view_unformatted($vars);
+}
