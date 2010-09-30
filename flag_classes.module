@@ -1,5 +1,8 @@
 <?php
 
+/**
+ * Implements hook_init().
+ */
 function flag_classes_init() {
   // @todo: Add this only if needed.
   drupal_add_js(drupal_get_path('module', 'flag_classes') . '/flag_classes.js');
@@ -102,6 +105,11 @@ function _flag_classes_view_flag_handler($view) {
   }
 }
 
+/**
+ * Implements MODULE_preprocess_HOOK().
+ *
+ * Adds flag classes to Views tables.
+ */
 function flag_classes_preprocess_views_view_table(&$vars) {
   $view = $vars['view'];
   $rows = $vars['rows'];
@@ -119,6 +127,11 @@ function flag_classes_preprocess_views_view_table(&$vars) {
   }
 }
 
+/**
+ * Implements MODULE_preprocess_HOOK().
+ *
+ * Adds flag classes to Views lists.
+ */
 function flag_classes_preprocess_views_view_unformatted(&$vars) {
   $view = $vars['view'];
   $rows = $vars['rows'];
@@ -138,6 +151,9 @@ function flag_classes_preprocess_views_view_unformatted(&$vars) {
   }
 }
 
+/**
+ * Implements MODULE_preprocess_HOOK().
+ */
 function flag_classes_preprocess_views_view_list(&$vars) {
   flag_classes_preprocess_views_view_unformatted($vars);
 }
