@@ -84,7 +84,6 @@ function flag_classes_enumerate($content_type, $content_id) {
 // -----------------------------------------------------------------------
 // Views support.
 
-// @todo: Extend this to not just nodes.
 // @todo: The view should have an on/off setting.
 
 /**
@@ -124,13 +123,17 @@ function flag_classes_preprocess_views_view_unformatted(&$vars) {
   $view = $vars['view'];
   $rows = $vars['rows'];
 
-  if ($view->base_table == 'node'
-       && $view->display_handler->get_option('row_plugin') != 'node'
-       && empty($view->style_plugin->options['grouping'])) {  // Note: we don't support Grouping.
-    foreach ($rows as $id => $row) {
-      $data = $view->result[$id];
-      $flag_classes = implode(' ', flag_classes_enumerate('node', $data->nid));
-      $vars['classes'][$id] .= ' ' . $flag_classes;
+  $flag_handler = _flag_classes_view_flag_handler($view);
+
+  if ($flag_handler) {
+    if ($view->display_handler->get_option('row_plugin') != $flag_handler->content_type
+         && empty($view->style_plugin->options['grouping'])) {  // Note: we don't support Grouping.
+      $view->init_query(); // Probably isn't needed. Ensures $view->base_field exists.
+      foreach ($rows as $id => $row) {
+        $data = $view->result[$id];
+        $flag_classes = implode(' ', flag_classes_enumerate($flag_handler->content_type, $data->{$view->base_field}));
+        $vars['classes'][$id] .= ' ' . $flag_classes;
+      }
     }
   }
 }
