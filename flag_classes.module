@@ -87,14 +87,33 @@ function flag_classes_enumerate($content_type, $content_id) {
 // @todo: Extend this to not just nodes.
 // @todo: The view should have an on/off setting.
 
+/**
+ * Returns the flag handler that handles the objects the view displays.
+ */
+function _flag_classes_view_flag_handler($view) {
+  // Maps a view base table to a flag 'content type', if different.
+  $content_type_map = array(
+    'users' => 'user',
+    'comments' => 'comment',
+    'term_data' => 'term',
+  );
+  $content_type = isset($content_type_map[$view->base_table]) ? $content_type_map[$view->base_table] : $view->base_table;
+  if (flag_fetch_definition($content_type)) {
+    return flag_flag::factory_by_content_type($content_type);
+  }
+}
+
 function flag_classes_preprocess_views_view_table(&$vars) {
   $view = $vars['view'];
   $rows = $vars['rows'];
 
-  if ($view->base_table == 'node') {
+  $flag_handler = _flag_classes_view_flag_handler($view);
+
+  if ($flag_handler) {
+    $view->init_query(); // Probably isn't needed. Ensures $view->base_field exists.
     foreach ($rows as $id => $row) {
-      $data = $view->result[$id]; // We can't look in $row because it may not have 'nid'.
-      $flag_classes = implode(' ', flag_classes_enumerate('node', $data->nid));
+      $data = $view->result[$id]; // We can't look in $row because it may not contain the base field.
+      $flag_classes = implode(' ', flag_classes_enumerate($flag_handler->content_type, $data->{$view->base_field}));
       $vars['row_classes'][$id][] = $flag_classes;
       $vars['row_classes'][$id][] = 'views-row'; // For our JavaScript.
     }
