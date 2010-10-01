@@ -32,46 +32,57 @@ function flag_classes_theme_registry_alter(&$theme_registry) {
  * he'll need to add "print $flag_classes" to his theme's node.tpl.php.
  */
 function flag_classes_preprocess_node(&$vars) {
-  global $flag_classes_in_wrapper;
-  if (!$flag_classes_in_wrapper && variable_get('flag_classes_wrap_nodes', TRUE)) {
-    $flag_classes_in_wrapper = TRUE;
-    $vars['node']->flag_classes = NULL; // Make PHP shut up in case the user prints $flag_classes in his node.tpl.php.
-    $vars['output'] = theme('node', $vars['node'], $vars['teaser'], $vars['page']);
-    $flag_classes_in_wrapper = FALSE;
-    $vars['flag_classes'] = implode(' ', flag_classes_enumerate('node', $vars['node']->nid));
-    $vars['template_files'][] = 'flag-classes-node';
-  }
+  $vars['node']->flag_classes = NULL; // Make PHP shut up in case the user prints $flag_classes in his node.tpl.php.
+  _flag_classes_theme_wrapper($vars, 'node', 'flag-classes-node');
 }
 
 function flag_classes_preprocess_comment(&$vars) {
-  global $flag_classes_in_wrapper;
-  global $flag_classes_saved_comment_links;
-
-  if (!$flag_classes_in_wrapper && variable_get('flag_classes_wrap_comments', TRUE)) {
-    $flag_classes_in_wrapper = TRUE;
-    $vars['comment']->flag_classes = NULL; // Make PHP shut up in case the user prints $flag_classes in his comment.tpl.php.
-    $flag_classes_saved_comment_links = $vars['links'];
-    $vars['output'] = theme('comment', $vars['comment'], $vars['node']);
-    $flag_classes_in_wrapper = FALSE;
-    $vars['flag_classes'] = implode(' ', flag_classes_enumerate('comment', $vars['comment']->cid));
-    $vars['template_files'][] = 'flag-classes-comment';
-  }
-
-  if ($flag_classes_in_wrapper && $flag_classes_saved_comment_links) {
-    $vars['links'] = $flag_classes_saved_comment_links;
-    $flag_classes_saved_comment_links = NULL;
-  }
+  _flag_classes_theme_wrapper($vars, 'comment', 'flag-classes-comment');
 }
 
 function flag_classes_preprocess_user_profile(&$vars) {
+  _flag_classes_theme_wrapper($vars, 'user', 'flag-classes-user-profile');
+}
+
+/**
+ * Helper: Wraps a template.
+ */
+function _flag_classes_theme_wrapper(&$vars, $content_type, $suggestion) {
   global $flag_classes_in_wrapper;
-  if (!$flag_classes_in_wrapper && variable_get('flag_classes_wrap_users', TRUE)) {
+
+  $flag_handler = flag_flag::factory_by_content_type($content_type);
+
+  if (!$flag_classes_in_wrapper && variable_get('flag_classes_wrap_' . $content_type, TRUE)) {
+
+    // Get the arguments passed to theme().
+    $trace = debug_backtrace();
+    $original_args = $trace[3]['args'];
+    $object = $original_args[1];
+
+    if ($content_type == 'user') { // Only the user_profile hook is affetced by this.
+      if (isset($object->content)) {
+        _flag_classes_unprint($object->content);
+      }
+    }
+
     $flag_classes_in_wrapper = TRUE;
-    //$vars['node']->flag_classes = NULL; // Make PHP shut up in case the user prints $flag_classes in his node.tpl.php.
-    $vars['output'] = user_view(user_load($vars['account']->uid));
+    $vars['output'] = call_user_func_array('theme', $original_args);
     $flag_classes_in_wrapper = FALSE;
-    $vars['flag_classes'] = implode(' ', flag_classes_enumerate('user', $vars['account']->uid));
-    $vars['template_files'][] = 'flag-classes-user-profile';
+
+    $vars['flag_classes'] = implode(' ', flag_classes_enumerate($content_type, $flag_handler->get_content_id($object)));
+    $vars['template_files'][] = $suggestion;
+  }
+}
+
+/**
+ * Makes content that has been rendered fit for rendering again.
+ */
+function _flag_classes_unprint(&$content) {
+  if (isset($content['#printed'])) {
+    unset($content['#printed']);
+  }
+  foreach (element_children($content) as $key) {
+    _flag_classes_unprint($content[$key]);
   }
 }
 
